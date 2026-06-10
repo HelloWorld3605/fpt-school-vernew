@@ -100,26 +100,31 @@ class _ClubsScreenState extends State<ClubsScreen> {
 
             // Search Bar
             Container(
-              decoration: AppStyles.cardDecoration,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE8E8E8), width: 1.5),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x08000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
               child: TextField(
                 decoration: InputDecoration(
                   hintText: 'Tìm kiếm câu lạc bộ...',
                   hintStyle: AppStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.onSurfaceVariant),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.outlineVariant),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.outlineVariant),
-                  ),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.primaryContainer),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
                   ),
                   filled: true,
-                  fillColor: AppColors.surfaceContainerLowest,
+                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
@@ -135,29 +140,40 @@ class _ClubsScreenState extends State<ClubsScreen> {
                   final bool isActive = _activeChipIndex == index;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(_categories[index]),
-                      selected: isActive,
-                      selectedColor: AppColors.primary,
-                      backgroundColor: AppColors.surfaceContainerLowest,
-                      labelStyle: AppStyles.labelLg.copyWith(
-                        color: isActive ? Colors.white : AppColors.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(9999),
-                        side: BorderSide(
-                          color: isActive ? Colors.transparent : AppColors.outlineVariant,
-                          width: 1,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _activeChipIndex = index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                        decoration: isActive
+                            ? BoxDecoration(
+                                borderRadius: BorderRadius.circular(9999),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xffFFA726), Color(0xffFF7043)],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xffFF9800).withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              )
+                            : BoxDecoration(
+                                borderRadius: BorderRadius.circular(9999),
+                                color: AppColors.surfaceContainerLowest,
+                                border: Border.all(color: AppColors.outlineVariant, width: 1),
+                              ),
+                        child: Text(
+                          _categories[index],
+                          style: AppStyles.labelLg.copyWith(
+                            color: isActive ? Colors.white : AppColors.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      showCheckmark: false,
-                      onSelected: (bool selected) {
-                        setState(() {
-                          _activeChipIndex = index;
-                        });
-                      },
                     ),
                   );
                 }),
@@ -259,22 +275,46 @@ class _ClubsScreenState extends State<ClubsScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppColors.primary,
-                          elevation: 4,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      SizedBox(
+                        height: 50,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        ),
-                        child: Text(
-                          'Đăng ký ngay',
-                          style: AppStyles.labelLg.copyWith(
-                            color: AppColors.primaryContainer,
-                            fontWeight: FontWeight.bold,
+                          child: ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Đăng ký ngay',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xffFF7043),
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                SizedBox(width: 6),
+                                Icon(Icons.arrow_forward_rounded, color: Color(0xffFF7043), size: 18),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -299,12 +339,31 @@ class _ClubsScreenState extends State<ClubsScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppColors.primaryContainer,
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+      floatingActionButton: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xffFFA726), Color(0xffFF7043)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xffFF9800).withOpacity(0.4),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: () {},
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add, color: Colors.white, size: 28),
+        ),
       ),
     );
   }

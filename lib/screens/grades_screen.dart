@@ -93,15 +93,18 @@ class _GradesScreenState extends State<GradesScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.outlineVariant),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE8E8E8), width: 1.5),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
+                ],
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _selectedSemester,
                   isExpanded: true,
-                  icon: const Icon(Icons.expand_more, color: AppColors.onSurfaceVariant),
+                  icon: const Icon(Icons.expand_more, color: AppColors.primaryContainer),
                   onChanged: (String? newValue) {
                     if (newValue != null) {
                       setState(() {
@@ -351,12 +354,31 @@ class _GradesScreenState extends State<GradesScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppColors.primaryContainer,
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: const Icon(Icons.contact_support_outlined, color: Colors.white, size: 28),
+      floatingActionButton: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xffFFA726), Color(0xffFF7043)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xffFF9800).withOpacity(0.4),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: () {},
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.contact_support_outlined, color: Colors.white, size: 28),
+        ),
       ),
     );
   }

@@ -61,13 +61,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(16),
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               elevation: 0,
             ),
-            child: Text(
-              'Đăng xuất',
-              style: AppStyles.labelLg.copyWith(color: Colors.white),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Đăng xuất',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                SizedBox(width: 6),
+                Icon(Icons.logout_rounded, size: 16, color: Colors.white),
+              ],
             ),
           ),
         ],
@@ -297,21 +310,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // ── Đăng xuất ─────────────────────────────────────────
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              height: 58,
+              child: OutlinedButton(
                 onPressed: _showLogoutDialog,
-                icon: const Icon(Icons.logout_rounded, size: 20),
-                label: const Text('Đăng xuất'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
                   side: const BorderSide(color: AppColors.error, width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  textStyle: AppStyles.labelLg.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout_rounded, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Đăng xuất',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

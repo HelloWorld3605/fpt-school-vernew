@@ -141,19 +141,26 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         Container(
                           width: 38,
                           height: 38,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSelected ? AppColors.primaryContainer : Colors.transparent,
-                            boxShadow: isSelected
-                                ? const [
+                          decoration: isSelected
+                              ? BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xffFFA726), Color(0xffFF7043)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  boxShadow: [
                                     BoxShadow(
-                                      color: Color(0x40FF6B00),
+                                      color: const Color(0xffFF9800).withOpacity(0.35),
                                       blurRadius: 8,
-                                      offset: Offset(0, 4),
+                                      offset: const Offset(0, 4),
                                     ),
-                                  ]
-                                : null,
-                          ),
+                                  ],
+                                )
+                              : const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.transparent,
+                                ),
                           alignment: Alignment.center,
                           child: Text(
                             day['date']!,
@@ -305,12 +312,31 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppColors.primaryContainer,
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+      floatingActionButton: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xffFFA726), Color(0xffFF7043)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xffFF9800).withOpacity(0.4),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: () {},
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add, color: Colors.white, size: 28),
+        ),
       ),
     );
   }

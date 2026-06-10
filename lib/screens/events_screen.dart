@@ -85,26 +85,27 @@ class _EventsScreenState extends State<EventsScreen> {
             
             // Search Bar
             Container(
-              decoration: AppStyles.cardDecoration,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE8E8E8), width: 1.5),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
+                ],
+              ),
               child: TextField(
                 decoration: InputDecoration(
                   hintText: 'Tìm kiếm sự kiện, hoạt động...',
                   hintStyle: AppStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.onSurfaceVariant),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.outlineVariant),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.outlineVariant),
-                  ),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.primaryContainer),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
                   ),
                   filled: true,
-                  fillColor: AppColors.surfaceContainerLowest,
+                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
@@ -330,56 +331,83 @@ class _EventsScreenState extends State<EventsScreen> {
                         // Button row
                         SizedBox(
                           width: double.infinity,
-                          height: 48,
+                          height: 52,
                           child: hasDetailsBtnOnly
-                              ? ElevatedButton(
+                              ? OutlinedButton(
                                   onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.surfaceContainerHigh,
-                                    foregroundColor: AppColors.primary,
-                                    elevation: 0,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primaryContainer,
+                                    side: const BorderSide(color: Color(0xffFFA726), width: 1.5),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
                                   ),
-                                  child: Text(
-                                    'Xem chi tiết',
-                                    style: AppStyles.labelLg.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Xem chi tiết',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Icon(Icons.arrow_forward_rounded, size: 18),
+                                    ],
                                   ),
                                 )
-                              : ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _registeredEvents[id] = !isRegistered;
-                                    });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          !isRegistered 
-                                              ? 'Đăng ký thành công!' 
-                                              : 'Đã hủy đăng ký.'
+                              : DecoratedBox(
+                                  decoration: isRegistered
+                                      ? BoxDecoration(
+                                          borderRadius: BorderRadius.circular(16),
+                                          color: Colors.green.shade600,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.green.withOpacity(0.3),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        )
+                                      : AppStyles.gradientButtonDecoration,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _registeredEvents[id] = !isRegistered;
+                                      });
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            !isRegistered
+                                                ? 'Đăng ký thành công!'
+                                                : 'Đã hủy đăng ký.',
+                                          ),
+                                          backgroundColor: !isRegistered ? Colors.green : Colors.grey,
                                         ),
-                                        backgroundColor: !isRegistered ? Colors.green : Colors.grey,
-                                      ),
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: isRegistered ? Colors.green.shade600 : AppColors.primaryContainer,
-                                    foregroundColor: Colors.white,
-                                    elevation: 4,
-                                    shadowColor: AppColors.primaryContainer.withOpacity(0.3),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    isRegistered ? 'Đã đăng ký!' : 'Tham gia ngay',
-                                    style: AppStyles.labelLg.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
+                                      );
+                                    },
+                                    style: AppStyles.gradientButtonStyle,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          isRegistered ? 'Đã đăng ký!' : 'Tham gia ngay',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          isRegistered ? Icons.check_rounded : Icons.arrow_forward_rounded,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),

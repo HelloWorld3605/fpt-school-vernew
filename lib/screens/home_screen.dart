@@ -384,8 +384,7 @@ class HomeScreen extends StatelessWidget {
         shape: const CircleBorder(),
         elevation: 6,
         child: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 28),
-      ),
-    );
+      ),    );
   }
 
   Widget _buildQuickAction(BuildContext context, int tabIndex, IconData icon, String label) {

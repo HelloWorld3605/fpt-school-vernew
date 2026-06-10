@@ -97,13 +97,24 @@ class _NavigationShellState extends State<NavigationShell> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: isActive 
-            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 8) // rounded-full px-4 py-1 in HTML
+        padding: isActive
+            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 8)
             : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: isActive
             ? BoxDecoration(
-                color: AppColors.primaryContainer, // bg-primary-container
-                borderRadius: BorderRadius.circular(9999), // rounded-full
+                borderRadius: BorderRadius.circular(9999),
+                gradient: const LinearGradient(
+                  colors: [Color(0xffFFA726), Color(0xffFF7043)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xffFF9800).withOpacity(0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               )
             : null,
         child: Row(

@@ -116,6 +116,29 @@ class AppStyles {
         ),
       );
 
+  // Gradient button decoration — đồng bộ với nút Đăng nhập
+  static BoxDecoration get gradientButtonDecoration => BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xffFFA726), Color(0xffFF7043)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x59FF9800), // #FF9800 @ 35%
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      );
+
+  static ButtonStyle get gradientButtonStyle => ElevatedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      );
+
   static double getAppBarHeight(BuildContext context) {
     return MediaQuery.of(context).padding.top + kToolbarHeight;
   }
