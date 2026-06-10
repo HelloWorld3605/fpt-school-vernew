@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
             right: 0,
             height: size.height * 0.72,
             child: Image.asset(
-              'assets/images/fullbackground.png',
+              'assets/images/fullbackground1.png',
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
             ),
