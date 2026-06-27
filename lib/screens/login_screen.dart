@@ -38,7 +38,6 @@ class _LoginScreenState extends State<LoginScreen> {
       resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
-          // ── Full background image ───────────────────────────────
           Positioned(
             top: -75,
             left: 0,
@@ -48,6 +47,18 @@ class _LoginScreenState extends State<LoginScreen> {
               'assets/images/fullbackground1.png',
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
+              errorBuilder: (context, error, stackTrace) {
+                return Image.asset(
+                  'assets/images/fullbackground.png',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: AppColors.primary,
+                    );
+                  },
+                );
+              },
             ),
           ),
 
