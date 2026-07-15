@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import '../theme/colors.dart';
 import '../theme/styles.dart';
+import '../api/auth_api.dart';
 import 'navigation_shell.dart';
 import 'forgot_password_screen.dart';
 
@@ -16,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -24,9 +26,48 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _onLogin() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const NavigationShell()),
+  void _onLogin() async {
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (phone.isEmpty) {
+      _showError('Vui lòng nhập số điện thoại');
+      return;
+    }
+    if (password.isEmpty) {
+      _showError('Vui lòng nhập mật khẩu');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await AuthApi().login(phone, password);
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const NavigationShell()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showError(e.toString().replaceAll('Exception:', '').trim());
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
     );
   }
 
@@ -69,9 +110,6 @@ class _LoginScreenState extends State<LoginScreen> {
               physics: const ClampingScrollPhysics(),
               child: Container(
                 width: double.infinity,
-                constraints: BoxConstraints(
-                  maxHeight: size.height * 0.62,
-                ),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
@@ -211,26 +249,35 @@ class _LoginScreenState extends State<LoginScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                 ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Đăng nhập',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                        letterSpacing: 0.5,
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    : const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Đăng nhập',
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Icon(
+                                            Icons.arrow_forward_rounded,
+                                            color: Colors.white,
+                                            size: 22,
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Icon(
-                                      Icons.arrow_forward_rounded,
-                                      color: Colors.white,
-                                      size: 22,
-                                    ),
-                                  ],
-                                ),
                               ),
                             ),
                           ),

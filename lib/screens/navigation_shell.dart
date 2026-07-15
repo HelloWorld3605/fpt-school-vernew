@@ -69,7 +69,7 @@ class _NavigationShellState extends State<NavigationShell> {
             ),
           ],
         ),
-        padding: EdgeInsets.fromLTRB(12, 10, 12, bottomPadding > 0 ? bottomPadding : 10),
+        padding: EdgeInsets.fromLTRB(8, 10, 8, bottomPadding > 0 ? bottomPadding : 10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -98,8 +98,8 @@ class _NavigationShellState extends State<NavigationShell> {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
         padding: isActive
-            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 8)
-            : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+            : const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: isActive
             ? BoxDecoration(
                 borderRadius: BorderRadius.circular(9999),
@@ -126,7 +126,7 @@ class _NavigationShellState extends State<NavigationShell> {
               size: 24,
             ),
             if (isActive) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               Text(
                 label,
                 style: AppStyles.labelSm.copyWith(

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import '../api/grade_api.dart';
 import '../theme/colors.dart';
 import '../theme/styles.dart';
+import '../widgets/custom_app_header.dart';
+import '../api/auth_api.dart';
+import 'grade_detail_screen.dart';
 
 class GradesScreen extends StatefulWidget {
   const GradesScreen({super.key});
@@ -10,512 +14,679 @@ class GradesScreen extends StatefulWidget {
 }
 
 class _GradesScreenState extends State<GradesScreen> {
+  final GradeApi _apiController = GradeApi();
+  List<Grade> _grades = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  String _selectedClass = 'Lớp 10';
+  final List<String> _classes = ['Lớp 10', 'Lớp 11', 'Lớp 12'];
+
   String _selectedSemester = 'Học kỳ 2 - Năm học 2023-2024';
-  final List<String> _semesters = [
-    'Học kỳ 1 - Năm học 2023-2024',
-    'Học kỳ 2 - Năm học 2023-2024',
-    'Học kỳ hè - Năm học 2023-2024',
+
+  List<String> get _semestersForSelectedClass {
+    if (_selectedClass == 'Lớp 10') {
+      return [
+        'Học kỳ 1 - Năm học 2023-2024',
+        'Học kỳ 2 - Năm học 2023-2024',
+        'Cả năm - Năm học 2023-2024',
+      ];
+    } else if (_selectedClass == 'Lớp 11') {
+      return [
+        'Học kỳ 1 - Năm học 2024-2025',
+        'Học kỳ 2 - Năm học 2024-2025',
+        'Cả năm - Năm học 2024-2025',
+      ];
+    } else {
+      return [
+        'Học kỳ 1 - Năm học 2025-2026',
+        'Học kỳ 2 - Năm học 2025-2026',
+        'Cả năm - Năm học 2025-2026',
+      ];
+    }
+  }
+
+  List<String> get _allSemesters {
+    return [
+      'Học kỳ 1 - Năm học 2023-2024',
+      'Học kỳ 2 - Năm học 2023-2024',
+      'Cả năm - Năm học 2023-2024',
+      'Học kỳ 1 - Năm học 2024-2025',
+      'Học kỳ 2 - Năm học 2024-2025',
+      'Cả năm - Năm học 2024-2025',
+      'Học kỳ 1 - Năm học 2025-2026',
+      'Học kỳ 2 - Năm học 2025-2026',
+      'Cả năm - Năm học 2025-2026',
+    ];
+  }
+
+  final List<Map<String, String>> _allSubjects = [
+    {'code': 'TOAN', 'name': 'Toán'},
+    {'code': 'NVAN', 'name': 'Ngữ văn'},
+    {'code': 'NNGU', 'name': 'Ngoại ngữ (Tiếng Anh)'},
+    {'code': 'LSUP', 'name': 'Lịch sử'},
+    {'code': 'GDTC', 'name': 'Giáo dục thể chất'},
+    {'code': 'QPAN', 'name': 'GDQP-AN'},
+    {'code': 'GDDP', 'name': 'Giáo dục địa phương'},
+    {'code': 'HDTN', 'name': 'HĐ trải nghiệm'},
+    {'code': 'VLYS', 'name': 'Vật lí'},
+    {'code': 'HHOA', 'name': 'Hóa học'},
+    {'code': 'SHOC', 'name': 'Sinh học'},
+    {'code': 'THOC', 'name': 'Tin học'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchGrades();
+  }
+
+  Future<void> _fetchGrades() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final studentId = AuthApi.currentUser?.studentId;
+      final grades = await _apiController.getAllGrades(studentId: studentId);
+      setState(() {
+        _grades = grades;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception:', '').trim();
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Grade> get _filteredGrades {
+    if (_selectedSemester.startsWith('Cả năm')) {
+      final parts = _selectedSemester.split(' - ');
+      final yearPart = parts.length > 1 ? parts[1] : 'Năm học 2023-2024';
+      final hk1SemName = 'Học kỳ 1 - $yearPart';
+      final hk2SemName = 'Học kỳ 2 - $yearPart';
+
+      final hk1Grades = _grades.where((g) => g.semester == hk1SemName).toList();
+      final hk2Grades = _grades.where((g) => g.semester == hk2SemName).toList();
+
+      final Map<String, Grade> hk1Map = {for (var g in hk1Grades) g.subjectCode.toUpperCase(): g};
+      final Map<String, Grade> hk2Map = {for (var g in hk2Grades) g.subjectCode.toUpperCase(): g};
+
+      final List<Grade> calculatedGrades = [];
+      for (var sub in _allSubjects) {
+        final code = sub['code']!;
+        final name = sub['name']!;
+        final g1 = hk1Map[code];
+        final g2 = hk2Map[code];
+
+        if (g1 != null && g1.assignmentScore != -1.0 && g1.overallScore != null &&
+            g2 != null && g2.assignmentScore != -1.0 && g2.overallScore != null) {
+          final overallHK1 = g1.overallScore!;
+          final overallHK2 = g2.overallScore!;
+          final overallCN = double.parse(((overallHK1 + 2.0 * overallHK2) / 3.0).toStringAsFixed(2));
+
+          String letter = 'F';
+          double gpa = 0.0;
+          if (overallCN >= 9.0) { letter = 'A+'; gpa = 4.0; }
+          else if (overallCN >= 8.5) { letter = 'A'; gpa = 3.7; }
+          else if (overallCN >= 8.0) { letter = 'A-'; gpa = 3.5; }
+          else if (overallCN >= 7.5) { letter = 'B+'; gpa = 3.2; }
+          else if (overallCN >= 7.0) { letter = 'B'; gpa = 3.0; }
+          else if (overallCN >= 6.5) { letter = 'B-'; gpa = 2.7; }
+          else if (overallCN >= 6.0) { letter = 'C+'; gpa = 2.3; }
+          else if (overallCN >= 5.5) { letter = 'C'; gpa = 2.0; }
+          else if (overallCN >= 5.0) { letter = 'C-'; gpa = 1.7; }
+          else if (overallCN >= 4.0) { letter = 'D'; gpa = 1.0; }
+
+          calculatedGrades.add(Grade(
+            gradeId: -999, // Dummy ID representing virtual Cả năm grade
+            studentId: g1.studentId,
+            studentName: g1.studentName,
+            className: g1.className,
+            subjectCode: code,
+            subjectName: name,
+            semester: _selectedSemester,
+            assignmentScore: overallHK1, // Store HK1 overall score in assignmentScore slot for details page display
+            midtermScore: overallHK2,    // Store HK2 overall score in midtermScore slot
+            finalScore: -1.0,           // Not used for CN
+            overallScore: overallCN,
+            letterGrade: letter,
+            gpaPoint: gpa,
+            teacherComments: 'Điểm tổng kết cả năm tính tự động từ Điểm HK1 (${overallHK1.toStringAsFixed(2)}) và Điểm HK2 (${overallHK2.toStringAsFixed(2)}).',
+          ));
+        }
+      }
+      return calculatedGrades;
+    }
+    return _grades.where((g) => g.semester == _selectedSemester).toList();
+  }
+
+  List<Grade> get _completeSubjectGrades {
+    final Map<String, Grade> actualGradesMap = {
+      for (var g in _filteredGrades) g.subjectCode.toUpperCase(): g
+    };
+
+    final student = AuthApi.currentUser;
+    final studentName = student?.fullName ?? 'Học sinh';
+    final studentId = student?.studentId ?? 'HS001';
+    final className = student?.className ?? '10A1';
+
+    return _allSubjects.map((sub) {
+      final code = sub['code']!;
+      final name = sub['name']!;
+      if (actualGradesMap.containsKey(code)) {
+        return actualGradesMap[code]!;
+      } else {
+        return Grade(
+          gradeId: null,
+          studentId: studentId,
+          studentName: studentName,
+          className: className,
+          subjectCode: code,
+          subjectName: name,
+          semester: _selectedSemester,
+          assignmentScore: -1.0,
+          midtermScore: -1.0,
+          finalScore: -1.0,
+          overallScore: null,
+          letterGrade: null,
+          gpaPoint: null,
+          teacherComments: '',
+        );
+      }
+    }).toList();
+  }
+
+  double get _dtbAverage {
+    final list = _filteredGrades;
+    if (list.isEmpty) return 0.0;
+    double sum = list.fold(0.0, (prev, element) => prev + (element.overallScore ?? 0.0));
+    return sum / list.length;
+  }
+
+  String get _rankTextNew {
+    final list = _filteredGrades;
+    if (list.isEmpty) return 'Chưa xếp loại';
+
+    bool allGe8 = list.every((g) => (g.overallScore ?? 0.0) >= 8.0);
+    bool hasCoreGe8 = list.any((g) => 
+      ['TOAN', 'NVAN', 'NNGU'].contains(g.subjectCode.toUpperCase()) && 
+      (g.overallScore ?? 0.0) >= 8.0
+    );
+    if (allGe8 && hasCoreGe8) return 'Giỏi';
+
+    bool allGe65 = list.every((g) => (g.overallScore ?? 0.0) >= 6.5);
+    bool hasCoreGe65 = list.any((g) => 
+      ['TOAN', 'NVAN', 'NNGU'].contains(g.subjectCode.toUpperCase()) && 
+      (g.overallScore ?? 0.0) >= 6.5
+    );
+    if (allGe65 && hasCoreGe65) return 'Khá';
+
+    bool allGe50 = list.every((g) => (g.overallScore ?? 0.0) >= 5.0);
+    bool hasCoreGe50 = list.any((g) => 
+      ['TOAN', 'NVAN', 'NNGU'].contains(g.subjectCode.toUpperCase()) && 
+      (g.overallScore ?? 0.0) >= 5.0
+    );
+    if (allGe50 && hasCoreGe50) return 'Đạt';
+
+    return 'Chưa đạt';
+  }
+
+  Color get _rankColorNew {
+    String rank = _rankTextNew;
+    if (rank == 'Giỏi') return const Color(0xFF2E7D32); // Green
+    if (rank == 'Khá') return const Color(0xFF1976D2);  // Blue
+    if (rank == 'Đạt') return const Color(0xFFF57C00);  // Orange
+    return AppColors.error; // Red
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(80),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x0A000000),
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
+      appBar: CustomAppHeader(
+        title: 'Điểm số',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            onPressed: _fetchGrades,
           ),
-          padding: EdgeInsets.fromLTRB(
-            AppStyles.containerPadding,
-            MediaQuery.of(context).padding.top + 8,
-            AppStyles.containerPadding,
-            8,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _fetchGrades,
+        color: AppColors.primary,
+        child: _buildBodyContent(),
+      ),
+      floatingActionButton: AuthApi.currentUser?.role == 'admin'
+          ? FloatingActionButton(
+              heroTag: 'grades_screen_fab',
+              onPressed: () => _showAddEditGradeDialog(),
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildBodyContent() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primary, width: 2),
-                      image: const DecorationImage(
-                        image: NetworkImage(
-                          'https://lh3.googleusercontent.com/aida-public/AB6AXuC7tfV5e-q2yfuPQpwzEfp5WppIWDP3ZES2NbOfVpUTELnfUpPY8Kz117ASzpFgE3VD0AjcmcmzcsJYGY4TEyWoxnVhZ_TdLEscOhFZ-RsI71B7nzVYeEnza_JQllxlEzrJzBT-QfkSzJyjhCF_SuBlnTzKWboi3J5Jq_Qnfn_b5JpuXJ4N6nt7TlbdKZMzRC3xF3wy7nKK37ElEIeexGaZt5G3hyogmHSDSOYMxhg6fReMgYH4rsQyAHK0jOP3snGYmzYKogegS-1V',
-                        ),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'FPT SCHOOL',
-                    style: AppStyles.headlineMd.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              const Icon(Icons.cloud_off, size: 72, color: AppColors.outline),
+              const SizedBox(height: 16),
+              Text(
+                'Không Thể Kết Nối Máy Chủ',
+                style: AppStyles.headlineLg.copyWith(fontWeight: FontWeight.bold),
               ),
-              IconButton(
-                icon: const Icon(Icons.notifications_none_outlined, color: AppColors.onSurfaceVariant),
-                onPressed: () {},
+              const SizedBox(height: 8),
+              Text(
+                'Hãy đảm bảo Web App Java Tomcat đang hoạt động trên cổng 8080.\nLỗi: $_errorMessage',
+                textAlign: TextAlign.center,
+                style: AppStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _fetchGrades,
+                icon: const Icon(Icons.sync),
+                label: const Text('Thử Lại'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryContainer,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ],
           ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: AppStyles.containerPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      );
+    }
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: AppStyles.containerPadding),
+      children: [
+        const SizedBox(height: AppStyles.stackLg),
+        
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const SizedBox(height: AppStyles.stackLg),
-            
-            // Title & Semester Dropdown
-            Text(
-              'Kết quả học tập',
-              style: AppStyles.headlineLg.copyWith(fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                'Kết quả học tập',
+                style: AppStyles.headlineMd.copyWith(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE8E8E8), width: 1.5),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
-                  value: _selectedSemester,
-                  isExpanded: true,
-                  icon: const Icon(Icons.expand_more, color: AppColors.primaryContainer),
+                  value: _selectedClass,
                   onChanged: (String? newValue) {
                     if (newValue != null) {
                       setState(() {
-                        _selectedSemester = newValue;
+                        _selectedClass = newValue;
+                        final newSems = _semestersForSelectedClass;
+                        // Select default Semester for the newly selected class
+                        if (newSems.contains(_selectedSemester)) {
+                          // keep it if possible
+                        } else {
+                          _selectedSemester = newSems[1]; // default to HK2
+                        }
                       });
                     }
                   },
-                  items: _semesters.map<DropdownMenuItem<String>>((String value) {
+                  items: _classes.map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(
                         value,
-                        style: AppStyles.labelLg.copyWith(color: AppColors.onSurface),
+                        style: AppStyles.labelSm.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                       ),
                     );
                   }).toList(),
                 ),
               ),
             ),
-            const SizedBox(height: AppStyles.stackLg),
+          ],
+        ),
+        const SizedBox(height: AppStyles.stackSm),
 
-            // GPA Summary Bento Layout (Grid)
-            Row(
+        // Horizontal scrollable Semester list
+        SizedBox(
+          height: 38,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _semestersForSelectedClass.length,
+            itemBuilder: (context, index) {
+              final sem = _semestersForSelectedClass[index];
+              final isSelected = sem == _selectedSemester;
+              String displayName = sem.split(' - ')[0]; // E.g., "Học kỳ 1"
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: ChoiceChip(
+                  label: Text(
+                    displayName,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : AppColors.onSurface,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  selected: isSelected,
+                  selectedColor: AppColors.primary,
+                  backgroundColor: Colors.white,
+                  showCheckmark: false,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: isSelected ? AppColors.primary : const Color(0xFFE8E8E8),
+                      width: 1.2,
+                    ),
+                  ),
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _selectedSemester = sem;
+                      });
+                    }
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: AppStyles.stackLg),
+
+        _buildBentoGrid(),
+
+        const SizedBox(height: AppStyles.stackLg),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'DANH SÁCH MÔN HỌC',
+              style: AppStyles.labelLg.copyWith(
+                color: AppColors.onSurfaceVariant,
+                letterSpacing: 1.0,
+              ),
+            ),
+            Text(
+              '${_completeSubjectGrades.length} Môn học',
+              style: AppStyles.labelSm.copyWith(color: AppColors.primary),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppStyles.stackMd),
+
+        ..._completeSubjectGrades.map((grade) => Padding(
+              padding: const EdgeInsets.only(bottom: AppStyles.gutter),
+              child: _buildGradeCard(grade),
+            )),
+
+        const SizedBox(height: 120),
+      ],
+    );
+  }
+
+  Widget _buildBentoGrid() {
+    final dtb = _dtbAverage;
+    final total = _filteredGrades.length;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Container(
+            height: 130,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(color: Color(0x26000000), blurRadius: 6, offset: Offset(0, 4)),
+              ],
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // GPA Card (Left side)
+                Text(
+                  'ĐTB Học Kỳ',
+                  style: AppStyles.labelSm.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      dtb == 0.0 ? '0.00' : dtb.toStringAsFixed(2),
+                      style: AppStyles.display.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '/10.0',
+                      style: AppStyles.labelSm.copyWith(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: SizedBox(
+            height: 130,
+            child: Column(
+              children: [
                 Expanded(
                   child: Container(
-                    height: 140,
-                    padding: const EdgeInsets.all(16),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryContainer, // orange background
+                      color: _rankColorNew,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 6,
-                          offset: Offset(0, 4),
-                        ),
+                        BoxShadow(color: Color(0x13000000), blurRadius: 4, offset: Offset(0, 2)),
                       ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'GPA Tổng kết',
-                          style: AppStyles.labelSm.copyWith(
-                            color: Colors.white.withOpacity(0.9),
-                            fontWeight: FontWeight.w500,
+                          'Xếp Loại Học Lực',
+                          style: AppStyles.labelSm.copyWith(color: Colors.white.withOpacity(0.9)),
+                        ),
+                        Text(
+                          total == 0 ? 'N/A' : _rankTextNew,
+                          style: AppStyles.labelLg.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2)),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              '8.4',
-                              style: AppStyles.display.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 36,
-                              ),
+                              'Số Môn Học',
+                              style: AppStyles.labelSm.copyWith(color: AppColors.onSurface),
                             ),
-                            const SizedBox(width: 2),
                             Text(
-                              '/10',
-                              style: AppStyles.labelLg.copyWith(color: Colors.white),
+                              '$total Môn',
+                              style: AppStyles.labelLg.copyWith(
+                                color: AppColors.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                
-                // Rank & Credits (Right side)
-                Expanded(
-                  child: SizedBox(
-                    height: 140,
-                    child: Column(
-                      children: [
-                        // Rank card
-                        Expanded(
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondaryContainer, // blue background
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x13000000),
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Xếp loại',
-                                  style: AppStyles.labelSm.copyWith(
-                                    color: Colors.white.withOpacity(0.9),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Giỏi',
-                                  style: AppStyles.headlineMd.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        // Credits card
-                        Expanded(
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerHighest, // light grey-blue
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x0D000000),
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Số tín chỉ',
-                                      style: AppStyles.labelSm.copyWith(color: AppColors.onSurface),
-                                    ),
-                                    Text(
-                                      '18/18',
-                                      style: AppStyles.headlineMd.copyWith(
-                                        color: AppColors.onSurface,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const Icon(
-                                  Icons.workspace_premium,
-                                  color: AppColors.primary,
-                                  size: 24,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        const Icon(Icons.menu_book, color: AppColors.primary, size: 22),
                       ],
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppStyles.stackLg),
-
-            // Grades List Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Danh sách môn học'.toUpperCase(),
-                  style: AppStyles.labelLg.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                Text(
-                  'Chi tiết',
-                  style: AppStyles.labelSm.copyWith(color: AppColors.primary),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppStyles.stackMd),
-
-            // Subject 1
-            _buildGradeCard(
-              code: 'PRO192',
-              subject: 'Object-Oriented Programming',
-              credits: '3 Tín chỉ',
-              accentColor: AppColors.tertiary,
-              midScore: '8.5',
-              finalScore: '7.8',
-              avgScore: '8.1',
-              isPending: false,
-            ),
-            const SizedBox(height: AppStyles.gutter),
-
-            // Subject 2
-            _buildGradeCard(
-              code: 'MAD101',
-              subject: 'Discrete Mathematics',
-              credits: '3 Tín chỉ',
-              accentColor: AppColors.primary,
-              midScore: '9.0',
-              finalScore: '8.2',
-              avgScore: '8.5',
-              isPending: false,
-            ),
-            const SizedBox(height: AppStyles.gutter),
-
-            // Subject 3
-            _buildGradeCard(
-              code: 'OSG202',
-              subject: 'Operating Systems',
-              credits: '3 Tín chỉ',
-              accentColor: AppColors.secondary,
-              midScore: '7.5',
-              finalScore: '8.8',
-              avgScore: '8.3',
-              isPending: false,
-            ),
-            const SizedBox(height: AppStyles.gutter),
-
-            // Subject 4 - Pending
-            _buildGradeCard(
-              code: 'NWC203c',
-              subject: 'Computer Networking',
-              credits: '3 Tín chỉ',
-              accentColor: AppColors.outline,
-              midScore: '-',
-              finalScore: '-',
-              avgScore: '-',
-              isPending: true,
-            ),
-            const SizedBox(height: 120), // Spacer for bottom navigation
-          ],
-        ),
-      ),
-      floatingActionButton: Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Color(0xffFFA726), Color(0xffFF7043)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xffFF9800).withOpacity(0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
-        child: FloatingActionButton(
-          onPressed: () {},
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          shape: const CircleBorder(),
-          child: const Icon(Icons.contact_support_outlined, color: Colors.white, size: 28),
-        ),
-      ),
+      ],
     );
   }
 
-  Widget _buildGradeCard({
-    required String code,
-    required String subject,
-    required String credits,
-    required Color accentColor,
-    required String midScore,
-    required String finalScore,
-    required String avgScore,
-    required bool isPending,
-  }) {
-    return Container(
-      decoration: AppStyles.cardDecoration,
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            code,
-                            style: AppStyles.labelSm.copyWith(
-                              color: accentColor,
-                              fontWeight: FontWeight.bold,
+  Widget _buildGradeCard(Grade grade) {
+    final bool hasNoGrades = grade.assignmentScore == -1.0;
+    Color accentColor = AppColors.secondary;
+    if (hasNoGrades) {
+      accentColor = Colors.grey.shade400;
+    } else if (grade.letterGrade != null) {
+      if (grade.letterGrade!.startsWith('A')) {
+        accentColor = AppColors.primaryContainer;
+      } else if (grade.letterGrade!.startsWith('B')) {
+        accentColor = AppColors.secondary;
+      } else if (grade.letterGrade!.startsWith('C')) {
+        accentColor = AppColors.tertiary;
+      } else {
+        accentColor = AppColors.error;
+      }
+    }
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GradeDetailScreen(
+              grade: grade,
+              onUpdate: _fetchGrades,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        decoration: AppStyles.cardDecoration,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${grade.studentName} (${grade.studentId}) • Lớp ${grade.className}',
+                              style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            subject,
-                            style: AppStyles.headlineMd.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.onSurface,
+                            const SizedBox(height: 4),
+                            Text(
+                              grade.subjectName,
+                              style: AppStyles.headlineMd.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.onSurface,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isPending 
-                            ? AppColors.surfaceContainerHigh 
-                            : accentColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        credits,
-                        style: AppStyles.labelSm.copyWith(
-                          color: isPending ? AppColors.onSurface : accentColor,
-                          fontWeight: FontWeight.bold,
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 1,
-                  color: AppColors.outlineVariant.withOpacity(0.3),
-                ),
-                const SizedBox(height: 12),
-                if (isPending)
-                  Container(
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(
-                      'Đang cập nhật điểm...',
-                      style: AppStyles.labelLg.copyWith(
-                        color: AppColors.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: accentColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          hasNoGrades ? 'Chưa có' : (grade.letterGrade ?? 'F'),
+                          style: AppStyles.labelLg.copyWith(
+                            color: accentColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
-                  )
-                else
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 1,
+                    color: AppColors.outlineVariant.withOpacity(0.3),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Giữa kỳ',
-                            style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            midScore,
-                            style: AppStyles.labelLg.copyWith(
-                              color: AppColors.onSurface,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Cuối kỳ',
-                            style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            finalScore,
-                            style: AppStyles.labelLg.copyWith(
-                              color: AppColors.onSurface,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildScoreLabel('Bài tập (20%)', hasNoGrades ? '-' : grade.assignmentScore.toString()),
+                      _buildScoreLabel('Giữa kỳ (30%)', hasNoGrades ? '-' : grade.midtermScore.toString()),
+                      _buildScoreLabel('Cuối kỳ (50%)', hasNoGrades ? '-' : grade.finalScore.toString()),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            'Trung bình',
+                            'Tổng kết',
                             style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            avgScore,
+                            hasNoGrades ? '-' : (grade.overallScore?.toStringAsFixed(2) ?? '0.00'),
                             style: AppStyles.headlineMd.copyWith(
-                              color: AppColors.primary,
+                              color: hasNoGrades ? accentColor : AppColors.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -523,19 +694,396 @@ class _GradesScreenState extends State<GradesScreen> {
                       ),
                     ],
                   ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 4,
+                color: accentColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScoreLabel(String label, String score) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 10)),
+        const SizedBox(height: 2),
+        Text(score, style: AppStyles.labelLg.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  void _showAddEditGradeDialog({Grade? grade}) {
+    final isEdit = grade != null;
+    
+    final studentIdController = TextEditingController(text: grade?.studentId ?? 'HS001');
+    final studentNameController = TextEditingController(text: grade?.studentName ?? 'Lê Văn A');
+    final classNameController = TextEditingController(text: grade?.className ?? '10A1');
+    final subjectCodeController = TextEditingController(text: grade?.subjectCode ?? 'PRO192');
+    final subjectNameController = TextEditingController(text: grade?.subjectName ?? 'Object-Oriented Programming');
+    final commentsController = TextEditingController(text: grade?.teacherComments ?? '');
+    
+    final assignmentController = TextEditingController(text: grade?.assignmentScore.toString() ?? '8.0');
+    final midtermController = TextEditingController(text: grade?.midtermScore.toString() ?? '8.0');
+    final finalController = TextEditingController(text: grade?.finalScore.toString() ?? '8.0');
+
+    String localSemester = grade?.semester ?? _selectedSemester;
+    
+    final formKey = GlobalKey<FormState>();
+
+    double liveOverall = 0.0;
+    String liveLetter = 'F';
+    double liveGpa = 0.0;
+
+    void calculateLiveScores() {
+      double ass = double.tryParse(assignmentController.text) ?? 0.0;
+      double mid = double.tryParse(midtermController.text) ?? 0.0;
+      double fin = double.tryParse(finalController.text) ?? 0.0;
+      
+      double overall = (ass + 2.0 * mid + 3.0 * fin) / 6.0;
+      liveOverall = double.parse(overall.toStringAsFixed(2));
+
+      if (liveOverall >= 9.0) { liveLetter = 'A+'; liveGpa = 4.0; }
+      else if (liveOverall >= 8.5) { liveLetter = 'A'; liveGpa = 3.7; }
+      else if (liveOverall >= 8.0) { liveLetter = 'A-'; liveGpa = 3.5; }
+      else if (liveOverall >= 7.5) { liveLetter = 'B+'; liveGpa = 3.2; }
+      else if (liveOverall >= 7.0) { liveLetter = 'B'; liveGpa = 3.0; }
+      else if (liveOverall >= 6.5) { liveLetter = 'B-'; liveGpa = 2.7; }
+      else if (liveOverall >= 6.0) { liveLetter = 'C+'; liveGpa = 2.3; }
+      else if (liveOverall >= 5.5) { liveLetter = 'C'; liveGpa = 2.0; }
+      else if (liveOverall >= 5.0) { liveLetter = 'C-'; liveGpa = 1.7; }
+      else if (liveOverall >= 4.0) { liveLetter = 'D'; liveGpa = 1.0; }
+      else { liveLetter = 'F'; liveGpa = 0.0; }
+    }
+
+    calculateLiveScores();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            
+            void setupTextListener(TextEditingController controller) {
+              controller.addListener(() {
+                if (mounted) {
+                  setDialogState(() {
+                    calculateLiveScores();
+                  });
+                }
+              });
+            }
+
+            setupTextListener(assignmentController);
+            setupTextListener(midtermController);
+            setupTextListener(finalController);
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              backgroundColor: Colors.white,
+              title: Row(
+                children: [
+                  Icon(
+                    isEdit ? Icons.edit_note : Icons.add_chart,
+                    color: AppColors.primary,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isEdit ? 'Sửa Điểm Số' : 'Thêm Điểm Mới',
+                    style: AppStyles.headlineMd.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.9,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Divider(),
+                        const SizedBox(height: 12),
+                        
+                        Text('Thông tin học sinh', style: AppStyles.labelSm.copyWith(color: AppColors.primary)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                controller: studentIdController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Mã HS',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (val) => (val == null || val.isEmpty) ? 'Trống' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 3,
+                              child: TextFormField(
+                                controller: studentNameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Họ và tên',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (val) => (val == null || val.isEmpty) ? 'Bắt buộc' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                controller: classNameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Lớp',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (val) => (val == null || val.isEmpty) ? 'Trống' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        Text('Môn học & Học kỳ', style: AppStyles.labelSm.copyWith(color: AppColors.primary)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                controller: subjectCodeController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Mã môn',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (val) => (val == null || val.isEmpty) ? 'Trống' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 4,
+                              child: TextFormField(
+                                controller: subjectNameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tên môn học',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (val) => (val == null || val.isEmpty) ? 'Bắt buộc' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: localSemester,
+                          decoration: const InputDecoration(
+                            labelText: 'Học kỳ',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _allSemesters.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                localSemester = val;
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        Text('Điểm thành phần (Thang điểm 10)', style: AppStyles.labelSm.copyWith(color: AppColors.primary)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: assignmentController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  labelText: 'Chuyên cần (20%)',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (val) => _validateScore(val),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextFormField(
+                                controller: midtermController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  labelText: 'Giữa kỳ (30%)',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (val) => _validateScore(val),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextFormField(
+                                controller: finalController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  labelText: 'Cuối kỳ (50%)',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (val) => _validateScore(val),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.outlineVariant.withOpacity(0.5)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Kết quả tính trực tiếp (Tự động)',
+                                style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 11),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  Column(
+                                    children: [
+                                      Text('Tổng Kết', style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+                                      Text(liveOverall.toStringAsFixed(2), style: AppStyles.labelLg.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  Column(
+                                    children: [
+                                      Text('Xếp loại', style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+                                      Text(liveLetter, style: AppStyles.labelLg.copyWith(color: Colors.green, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  Column(
+                                    children: [
+                                      Text('GPA Scale', style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+                                      Text(liveGpa.toStringAsFixed(2), style: AppStyles.labelLg.copyWith(color: AppColors.secondary, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: commentsController,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Nhận xét của giáo viên',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Hủy', style: TextStyle(color: AppColors.onSurfaceVariant)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      Navigator.pop(context);
+                      
+                      final newGrade = Grade(
+                        gradeId: grade?.gradeId,
+                        studentId: studentIdController.text,
+                        studentName: studentNameController.text,
+                        className: classNameController.text,
+                        subjectCode: subjectCodeController.text,
+                        subjectName: subjectNameController.text,
+                        semester: localSemester,
+                        assignmentScore: double.parse(assignmentController.text),
+                        midtermScore: double.parse(midtermController.text),
+                        finalScore: double.parse(finalController.text),
+                        teacherComments: commentsController.text,
+                      );
+
+                      setState(() {
+                        _isLoading = true;
+                      });
+
+                      bool success;
+                      if (isEdit) {
+                        success = await _apiController.updateGrade(newGrade);
+                      } else {
+                        success = await _apiController.createGrade(newGrade);
+                      }
+
+                      if (success) {
+                        _showSnackBar(isEdit ? 'Cập nhật điểm thành công!' : 'Thêm điểm mới thành công!');
+                      } else {
+                        _showSnackBar('Lỗi thao tác cơ sở dữ liệu!');
+                      }
+
+                      _fetchGrades();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryContainer),
+                  child: Text(isEdit ? 'Lưu' : 'Thêm', style: const TextStyle(color: Colors.white)),
+                ),
               ],
-            ),
-          ),
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: 4,
-              color: accentColor,
-            ),
-          ),
-        ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String? _validateScore(String? val) {
+    if (val == null || val.isEmpty) return 'Bắt buộc';
+    final parsed = double.tryParse(val);
+    if (parsed == null) return 'Sai định dạng';
+    if (parsed < 0 || parsed > 10) return '0 - 10';
+    return null;
+  }
+
+
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: AppStyles.labelSm.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.onSurface,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
       ),
     );
   }

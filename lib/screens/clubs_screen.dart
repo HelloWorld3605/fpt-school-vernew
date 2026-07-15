@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/colors.dart';
 import '../theme/styles.dart';
+import '../api/club_api.dart';
+import '../widgets/custom_app_header.dart';
 
 class ClubsScreen extends StatefulWidget {
   const ClubsScreen({super.key});
@@ -10,7 +12,13 @@ class ClubsScreen extends StatefulWidget {
 }
 
 class _ClubsScreenState extends State<ClubsScreen> {
+  final ClubApi _apiController = ClubApi();
+  final TextEditingController _searchController = TextEditingController();
   int _activeChipIndex = 0;
+  List<ClubModel> _clubs = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
   final List<String> _categories = [
     'Tất cả',
     'Công nghệ',
@@ -20,350 +28,342 @@ class _ClubsScreenState extends State<ClubsScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchClubs();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchClubs() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final category = _activeChipIndex == 0 ? null : _categories[_activeChipIndex];
+      final search = _searchController.text.trim().isNotEmpty ? _searchController.text.trim() : null;
+      final list = await _apiController.getClubs(category: category, search: search);
+      setState(() {
+        _clubs = list;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception:', '').trim();
+        _isLoading = false;
+      });
+    }
+  }
+
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      case 'developer_board':
+        return Icons.developer_board;
+      case 'palette':
+        return Icons.palette;
+      case 'sports_basketball':
+        return Icons.sports_basketball;
+      case 'record_voice_over':
+        return Icons.record_voice_over;
+      default:
+        return Icons.groups;
+    }
+  }
+
+  Color _getAccentColor(String colorName) {
+    switch (colorName) {
+      case 'primary':
+        return AppColors.primary;
+      case 'secondary':
+        return AppColors.secondary;
+      case 'tertiary':
+        return AppColors.tertiary;
+      case 'error':
+        return AppColors.error;
+      default:
+        return AppColors.primaryContainer;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(80),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x0A000000),
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
+      appBar: CustomAppHeader(
+        title: 'Câu lạc bộ',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            onPressed: _fetchClubs,
           ),
-          padding: EdgeInsets.fromLTRB(
-            AppStyles.containerPadding,
-            MediaQuery.of(context).padding.top + 8,
-            AppStyles.containerPadding,
-            8,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primaryContainer, width: 2),
-                      image: const DecorationImage(
-                        image: NetworkImage(
-                          'https://lh3.googleusercontent.com/aida-public/AB6AXuDIoZyg0rzyaYKuoOTnbhYUo4ejXsh4SyOaBRA2ziuWkG2pNHhpks8XXSmRWBgduqrC0H33p4gl5AE-LQkYpkLdIptHkw0ExzEWcnuGN4Mr6Xd3KX-H0DIAQ2cea8CQo0NHk4zrY5wEAaj1X7E3U-77bjdpKrTk2y_Z0E0sy7Jbogg-zLiQzKfhXAyo7PombQ4GX1UN8v5vac2hucwzpFlOnx0rpu-D9tTDNadSONqfBlrvpskgj91KeC13x8se5ke4ZeLauVoFcKrv',
-                        ),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'FPT SCHOOL',
-                    style: AppStyles.headlineMd.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.notifications_none_outlined, color: AppColors.primary),
-                onPressed: () {},
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: AppStyles.containerPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: AppStyles.stackLg),
-            
-            // Header Section
-            Text(
-              'Câu lạc bộ',
-              style: AppStyles.headlineLg.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: AppStyles.baseSpacing),
-            Text(
-              'Khám phá và tham gia các hoạt động ngoại khóa sôi nổi tại FPT School.',
-              style: AppStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-            ),
-            const SizedBox(height: AppStyles.stackLg),
+      body: RefreshIndicator(
+        onRefresh: _fetchClubs,
+        color: AppColors.primary,
+        child: _buildBodyContent(),
+      ),
+      floatingActionButton: null,
+    );
+  }
 
-            // Search Bar
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE8E8E8), width: 1.5),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x08000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Tìm kiếm câu lạc bộ...',
-                  hintStyle: AppStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.primaryContainer),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppStyles.stackMd),
+  Widget _buildBodyContent() {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: AppStyles.containerPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppStyles.stackLg),
+          
+          // Header Section
+          Text(
+            'Câu lạc bộ',
+            style: AppStyles.headlineLg.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: AppStyles.baseSpacing),
+          Text(
+            'Khám phá và tham gia các hoạt động ngoại khóa sôi nổi tại FPT School.',
+            style: AppStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
+          ),
+          const SizedBox(height: AppStyles.stackLg),
 
-            // Category Chips Row
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: List.generate(_categories.length, (index) {
-                  final bool isActive = _activeChipIndex == index;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _activeChipIndex = index),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                        decoration: isActive
-                            ? BoxDecoration(
-                                borderRadius: BorderRadius.circular(9999),
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xffFFA726), Color(0xffFF7043)],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xffFF9800).withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              )
-                            : BoxDecoration(
-                                borderRadius: BorderRadius.circular(9999),
-                                color: AppColors.surfaceContainerLowest,
-                                border: Border.all(color: AppColors.outlineVariant, width: 1),
-                              ),
-                        child: Text(
-                          _categories[index],
-                          style: AppStyles.labelLg.copyWith(
-                            color: isActive ? Colors.white : AppColors.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-            const SizedBox(height: AppStyles.stackLg),
-
-            // Clubs list (Bento items)
-            Column(
-              children: [
-                // Club 1
-                _buildClubCard(
-                  title: 'F-Tech Club',
-                  tag: 'Công nghệ',
-                  desc: 'Sân chơi dành cho những tín đồ đam mê lập trình, robot và các giải pháp công nghệ sáng tạo.',
-                  accentColor: AppColors.tertiaryContainer, // #059eff border left
-                  tagBgColor: AppColors.tertiaryContainer.withOpacity(0.1),
-                  tagColor: AppColors.tertiary,
-                  icon: Icons.developer_board,
-                  members: const [
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuDDyEFPJ71UMG4P_ScJMW744LpSCdjJzEDqfU4D-71VgnNXsa7vsXf3X4aOQAB9NuCW-r7bZwes3G15PYxIR1H0OH3oilmazsPfBZqLccgHjS3X2gsHAmhvCXJTHFJ4sf1lFKf5jrg3ZoacajiQ_ylFaD4s-AcQxxUj1THF7glPUjG05QF4JyYhIeVENZb1d2tPy-aM_FjLIRQCp_kmEYRyb6jk7DCtHZFkWkZ8nCcQUV0tYzbUqvqS3SaLr6WrjbqKKSM1uTZPlxig',
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuAv0fU1lirZoSm-Q1DAVjqVDJikBNldPNitmVkyHeDN6an1h28xEC_BHuVsKhu5mHdKbz2pjK513YELHPWg74UGcSeDRGyJkHWnIGIu-jda3dM14ME9hLS_1Rzu_2-dpl2g_DPZVfff_llw2IFX7-FCxtuDRFUBtcdpdkGKcSDmPwtqCT8IQYiTSwOixSuMDgXFgraeskStBg-3evuM46wWeqNq-89Mu7AlWORvBa-TflYb2WFpmV6BXtaW3Jt9mOnk225tA_cJsF4k',
-                  ],
-                  extraMembersCount: 45,
-                ),
-                const SizedBox(height: AppStyles.gutter),
-
-                // Club 2
-                _buildClubCard(
-                  title: 'F-Art Space',
-                  tag: 'Nghệ thuật',
-                  desc: 'Nơi hội tụ những tâm hồn nghệ thuật, từ hội họa, thiết kế đến âm nhạc và biểu diễn sân khấu.',
-                  accentColor: AppColors.error, // red border left
-                  tagBgColor: AppColors.errorContainer.withOpacity(0.5),
-                  tagColor: AppColors.error,
-                  icon: Icons.palette,
-                  members: const [
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuBkLN1R-eHhO6rxbo81RY2qA_6OXHfunPQvxHOVA0eKRGJafdlxpCE8IJdzc7x9HNEUzHdAr84HR_IyRMhAtLU9YswOo9zYPtH-obAT3g-w5vhAAs-SHj57OR0GQiHbIHCdv-8UxGawfciDFmcAdg5UBsr0yK9K9AndkOSQG7xeeCB_6R7sKPPqg2Tvefl40IUvuuy8deZMz-x8M5vKgyvEw-81Tw53gEiQdOGo2jwK_CfX0XKUkLdKb91plZuHLO0dZNNzAfwhyfy-',
-                  ],
-                  extraMembersCount: 120,
-                ),
-                const SizedBox(height: AppStyles.gutter),
-
-                // Club 3
-                _buildClubCard(
-                  title: 'F-Sport Hub',
-                  tag: 'Thể thao',
-                  desc: 'Rèn luyện sức khỏe và tinh thần đồng đội thông qua các bộ môn bóng rổ, bóng đá và cầu lông.',
-                  accentColor: AppColors.secondary, // royal blue border left
-                  tagBgColor: AppColors.secondary.withOpacity(0.1),
-                  tagColor: AppColors.secondary,
-                  icon: Icons.sports_basketball,
-                  members: const [],
-                  extraMembersCount: 80,
-                ),
-                const SizedBox(height: AppStyles.gutter),
-
-                // Club 4
-                _buildClubCard(
-                  title: 'F-Speaker',
-                  tag: 'Kỹ năng',
-                  desc: 'Câu lạc bộ tranh biện và kỹ năng giao tiếp, giúp bạn tự tin hơn trước đám đông.',
-                  accentColor: AppColors.primary, // orange border left
-                  tagBgColor: AppColors.primaryFixed.withOpacity(0.5),
-                  tagColor: AppColors.primary,
-                  icon: Icons.record_voice_over,
-                  members: const [
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuAQsPAHTnlBJcStKNtKh6AqiJQoovmZJCO9DfRHiTZqIOrtSOERztvFkYwJ1uNtn76fPM5375kNnMBT5Xpmx36tm5SpXOevnTp73wgvJJmytS0o6csAVcMa-cxCSazD13xb19Q0eCs0s4S-9PUkvleFQlgyErKHcVEDd1MpSe6d5-aKKxJh7jyJJ9pDBaiiixC6D4HoWTPuFjCgO86gO67WpjzPVMKFA0cHRb4r_6CJ_pyTRj8l3QVP5Q1X3NwnFcYUiHb0Tw-1aEKN',
-                  ],
-                  extraMembersCount: 32,
+          // Search Bar
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE8E8E8), width: 1.5),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x08000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
                 ),
               ],
             ),
-            const SizedBox(height: AppStyles.stackLg),
+            child: TextField(
+              controller: _searchController,
+              onSubmitted: (_) => _fetchClubs(),
+              decoration: InputDecoration(
+                hintText: 'Tìm kiếm câu lạc bộ...',
+                hintStyle: AppStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
+                prefixIcon: const Icon(Icons.search, color: AppColors.primaryContainer),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppStyles.stackMd),
 
-            // Register Club Suggestion Banner
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: AppStyles.primaryGradientDecoration,
-              child: Stack(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Bạn chưa tìm thấy CLB phù hợp?',
-                        style: AppStyles.headlineLg.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 22,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tự đề xuất thành lập câu lạc bộ mới của riêng bạn ngay hôm nay!',
-                        style: AppStyles.bodyMd.copyWith(
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        height: 50,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withOpacity(0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
+          // Category Chips Row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: List.generate(_categories.length, (index) {
+                final bool isActive = _activeChipIndex == index;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _activeChipIndex = index);
+                      _fetchClubs();
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      decoration: isActive
+                          ? BoxDecoration(
+                              borderRadius: BorderRadius.circular(9999),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xffFFA726), Color(0xffFF7043)],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
                               ),
-                            ],
-                          ),
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              shadowColor: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Đăng ký ngay',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xffFF7043),
-                                    letterSpacing: 0.3,
-                                  ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xffFF9800).withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
                                 ),
-                                SizedBox(width: 6),
-                                Icon(Icons.arrow_forward_rounded, color: Color(0xffFF7043), size: 18),
                               ],
+                            )
+                          : BoxDecoration(
+                              borderRadius: BorderRadius.circular(9999),
+                              color: AppColors.surfaceContainerLowest,
+                              border: Border.all(color: AppColors.outlineVariant, width: 1),
                             ),
-                          ),
+                      child: Text(
+                        _categories[index],
+                        style: AppStyles.labelLg.copyWith(
+                          color: isActive ? Colors.white : AppColors.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ),
-                    ],
-                  ),
-                  const Positioned(
-                    right: -10,
-                    bottom: -15,
-                    child: Opacity(
-                      opacity: 0.2,
-                      child: Icon(
-                        Icons.groups,
-                        size: 110,
-                        color: Colors.white,
                       ),
                     ),
                   ),
+                );
+              }),
+            ),
+          ),
+          const SizedBox(height: AppStyles.stackLg),
+
+          // Clubs list
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            )
+          else if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 48),
+              child: Center(
+                child: Column(
+                  children: [
+                    const Icon(Icons.cloud_off, size: 48, color: AppColors.outline),
+                    const SizedBox(height: 8),
+                    Text('Lỗi kết nối máy chủ', style: AppStyles.labelLg),
+                    const SizedBox(height: 12),
+                    ElevatedButton(onPressed: _fetchClubs, child: const Text('Thử lại')),
+                  ],
+                ),
+              ),
+            )
+          else if (_clubs.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 48),
+              decoration: AppStyles.cardDecoration,
+              child: Column(
+                children: [
+                  const Icon(Icons.inbox, size: 48, color: AppColors.outline),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Không tìm thấy câu lạc bộ nào',
+                    style: AppStyles.labelLg.copyWith(color: AppColors.onSurfaceVariant),
+                  ),
                 ],
               ),
+            )
+          else
+            ..._clubs.map((club) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppStyles.gutter),
+                  child: _buildClubCard(
+                    title: club.name,
+                    tag: club.category,
+                    desc: club.description,
+                    accentColor: _getAccentColor(club.accentColor),
+                    tagBgColor: _getAccentColor(club.accentColor).withOpacity(0.15),
+                    tagColor: _getAccentColor(club.accentColor),
+                    icon: _getIconData(club.iconName),
+                    members: const [],
+                    extraMembersCount: club.memberCount,
+                  ),
+                )),
+          
+          const SizedBox(height: AppStyles.stackLg),
+
+          // Register Club Suggestion Banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: AppStyles.primaryGradientDecoration,
+            child: Stack(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Bạn chưa tìm thấy CLB phù hợp?',
+                      style: AppStyles.headlineLg.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 22,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tự đề xuất thành lập câu lạc bộ mới của riêng bạn ngay hôm nay!',
+                      style: AppStyles.bodyMd.copyWith(
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 50,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () {},
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            shadowColor: Colors.transparent,
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Đăng ký ngay',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xffFF7043),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              SizedBox(width: 6),
+                              Icon(Icons.arrow_forward_rounded, color: Color(0xffFF7043), size: 18),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Positioned(
+                  right: -10,
+                  bottom: -15,
+                  child: Opacity(
+                    opacity: 0.2,
+                    child: Icon(
+                      Icons.groups,
+                      size: 110,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 120), // Spacer for bottom navigation
-          ],
-        ),
-      ),
-      floatingActionButton: Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Color(0xffFFA726), Color(0xffFF7043)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xffFF9800).withOpacity(0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: FloatingActionButton(
-          onPressed: () {},
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          shape: const CircleBorder(),
-          child: const Icon(Icons.add, color: Colors.white, size: 28),
-        ),
+          const SizedBox(height: 120),
+        ],
       ),
     );
   }
@@ -436,7 +436,6 @@ class _ClubsScreenState extends State<ClubsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Members overlap avatars
                     Row(
                       children: [
                         if (members.isNotEmpty)
@@ -482,7 +481,6 @@ class _ClubsScreenState extends State<ClubsScreen> {
                         ),
                       ],
                     ),
-                    // View Detail text button
                     Row(
                       children: [
                         Text(
