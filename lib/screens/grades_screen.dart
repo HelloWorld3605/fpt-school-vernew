@@ -5,6 +5,7 @@ import '../theme/styles.dart';
 import '../widgets/custom_app_header.dart';
 import '../api/auth_api.dart';
 import 'grade_detail_screen.dart';
+import '../api/enums.dart';
 
 class GradesScreen extends StatefulWidget {
   const GradesScreen({super.key});
@@ -19,61 +20,38 @@ class _GradesScreenState extends State<GradesScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  String _selectedClass = 'Lớp 10';
-  final List<String> _classes = ['Lớp 10', 'Lớp 11', 'Lớp 12'];
+  GradeLevel _selectedClass = GradeLevel.khoi10;
 
   String _selectedSemester = 'Học kỳ 2 - Năm học 2023-2024';
 
-  List<String> get _semestersForSelectedClass {
-    if (_selectedClass == 'Lớp 10') {
-      return [
-        'Học kỳ 1 - Năm học 2023-2024',
-        'Học kỳ 2 - Năm học 2023-2024',
-        'Cả năm - Năm học 2023-2024',
-      ];
-    } else if (_selectedClass == 'Lớp 11') {
-      return [
-        'Học kỳ 1 - Năm học 2024-2025',
-        'Học kỳ 2 - Năm học 2024-2025',
-        'Cả năm - Năm học 2024-2025',
-      ];
-    } else {
-      return [
-        'Học kỳ 1 - Năm học 2025-2026',
-        'Học kỳ 2 - Năm học 2025-2026',
-        'Cả năm - Năm học 2025-2026',
-      ];
+  String getAcademicYearForClass(GradeLevel grade) {
+    switch (grade) {
+      case GradeLevel.khoi10:
+        return '2023-2024';
+      case GradeLevel.khoi11:
+        return '2024-2025';
+      case GradeLevel.khoi12:
+        return '2025-2026';
     }
   }
 
-  List<String> get _allSemesters {
-    return [
-      'Học kỳ 1 - Năm học 2023-2024',
-      'Học kỳ 2 - Năm học 2023-2024',
-      'Cả năm - Năm học 2023-2024',
-      'Học kỳ 1 - Năm học 2024-2025',
-      'Học kỳ 2 - Năm học 2024-2025',
-      'Cả năm - Năm học 2024-2025',
-      'Học kỳ 1 - Năm học 2025-2026',
-      'Học kỳ 2 - Năm học 2025-2026',
-      'Cả năm - Năm học 2025-2026',
-    ];
+  List<String> get _semestersForSelectedClass {
+    final year = getAcademicYearForClass(_selectedClass);
+    return SemesterTerm.values.map((term) => '${term.label} - Năm học $year').toList();
   }
 
-  final List<Map<String, String>> _allSubjects = [
-    {'code': 'TOAN', 'name': 'Toán'},
-    {'code': 'NVAN', 'name': 'Ngữ văn'},
-    {'code': 'NNGU', 'name': 'Ngoại ngữ (Tiếng Anh)'},
-    {'code': 'LSUP', 'name': 'Lịch sử'},
-    {'code': 'GDTC', 'name': 'Giáo dục thể chất'},
-    {'code': 'QPAN', 'name': 'GDQP-AN'},
-    {'code': 'GDDP', 'name': 'Giáo dục địa phương'},
-    {'code': 'HDTN', 'name': 'HĐ trải nghiệm'},
-    {'code': 'VLYS', 'name': 'Vật lí'},
-    {'code': 'HHOA', 'name': 'Hóa học'},
-    {'code': 'SHOC', 'name': 'Sinh học'},
-    {'code': 'THOC', 'name': 'Tin học'},
-  ];
+  List<String> get _allSemesters {
+    final List<String> list = [];
+    for (var grade in GradeLevel.values) {
+      final year = getAcademicYearForClass(grade);
+      for (var term in SemesterTerm.values) {
+        list.add('${term.label} - Năm học $year');
+      }
+    }
+    return list;
+  }
+
+  List<SubjectType> get _allSubjects => SubjectType.values;
 
   @override
   void initState() {
@@ -116,8 +94,8 @@ class _GradesScreenState extends State<GradesScreen> {
 
       final List<Grade> calculatedGrades = [];
       for (var sub in _allSubjects) {
-        final code = sub['code']!;
-        final name = sub['name']!;
+        final code = sub.code;
+        final name = sub.label;
         final g1 = hk1Map[code];
         final g2 = hk2Map[code];
 
@@ -174,8 +152,8 @@ class _GradesScreenState extends State<GradesScreen> {
     final className = student?.className ?? '10A1';
 
     return _allSubjects.map((sub) {
-      final code = sub['code']!;
-      final name = sub['name']!;
+      final code = sub.code;
+      final name = sub.label;
       if (actualGradesMap.containsKey(code)) {
         return actualGradesMap[code]!;
       } else {
@@ -206,40 +184,55 @@ class _GradesScreenState extends State<GradesScreen> {
     return sum / list.length;
   }
 
-  String get _rankTextNew {
-    final list = _filteredGrades;
-    if (list.isEmpty) return 'Chưa xếp loại';
+  AcademicRank get _rankEnumNew {
+    final list = _filteredGrades.where((g) => g.overallScore != null && g.overallScore != -1.0).toList();
+    if (list.isEmpty) return AcademicRank.chuaDat;
 
-    bool allGe8 = list.every((g) => (g.overallScore ?? 0.0) >= 8.0);
-    bool hasCoreGe8 = list.any((g) => 
-      ['TOAN', 'NVAN', 'NNGU'].contains(g.subjectCode.toUpperCase()) && 
-      (g.overallScore ?? 0.0) >= 8.0
-    );
-    if (allGe8 && hasCoreGe8) return 'Giỏi';
+    final scoreGrades = list.where((g) => !g.subjectType.isCommentEvaluation).toList();
+    final commentGrades = list.where((g) => g.subjectType.isCommentEvaluation).toList();
 
-    bool allGe65 = list.every((g) => (g.overallScore ?? 0.0) >= 6.5);
-    bool hasCoreGe65 = list.any((g) => 
-      ['TOAN', 'NVAN', 'NNGU'].contains(g.subjectCode.toUpperCase()) && 
-      (g.overallScore ?? 0.0) >= 6.5
-    );
-    if (allGe65 && hasCoreGe65) return 'Khá';
+    // Stats for score-based grades
+    final allGe65 = scoreGrades.isNotEmpty && scoreGrades.every((g) => (g.overallScore ?? 0.0) >= 6.5);
+    final allGe50 = scoreGrades.isNotEmpty && scoreGrades.every((g) => (g.overallScore ?? 0.0) >= 5.0);
+    final countGe8 = scoreGrades.where((g) => (g.overallScore ?? 0.0) >= 8.0).length;
+    final countGe65 = scoreGrades.where((g) => (g.overallScore ?? 0.0) >= 6.5).length;
+    final countGe50 = scoreGrades.where((g) => (g.overallScore ?? 0.0) >= 5.0).length;
+    final noUnder35 = scoreGrades.every((g) => (g.overallScore ?? 0.0) >= 3.5);
 
-    bool allGe50 = list.every((g) => (g.overallScore ?? 0.0) >= 5.0);
-    bool hasCoreGe50 = list.any((g) => 
-      ['TOAN', 'NVAN', 'NNGU'].contains(g.subjectCode.toUpperCase()) && 
-      (g.overallScore ?? 0.0) >= 5.0
-    );
-    if (allGe50 && hasCoreGe50) return 'Đạt';
+    // Stats for comment-based grades (Any score >= 5.0 is Đạt, < 5.0 is Chưa đạt)
+    final countCommentChuaDat = commentGrades.where((g) => (g.overallScore ?? 0.0) < 5.0).length;
 
-    return 'Chưa đạt';
+    // 1. Tốt: ĐTB các môn học đánh giá bằng điểm số >= 6.5, ít nhất 6 môn >= 8.0, và 100% môn nhận xét đạt mức Đạt (countCommentChuaDat == 0)
+    if (allGe65 && countGe8 >= 6 && countCommentChuaDat == 0) {
+      return AcademicRank.tot;
+    }
+
+    // 2. Khá: ĐTB các môn học đánh giá bằng điểm số >= 5.0, ít nhất 6 môn >= 6.5, và 100% môn nhận xét đạt mức Đạt (countCommentChuaDat == 0)
+    if (allGe50 && countGe65 >= 6 && countCommentChuaDat == 0) {
+      return AcademicRank.kha;
+    }
+
+    // 3. Đạt: Ít nhất 6 môn đánh giá bằng điểm số >= 5.0, không môn nào < 3.5, và tối đa 1 môn nhận xét Chưa đạt (countCommentChuaDat <= 1)
+    if (countGe50 >= 6 && noUnder35 && countCommentChuaDat <= 1) {
+      return AcademicRank.dat;
+    }
+
+    return AcademicRank.chuaDat;
   }
 
+  String get _rankTextNew => _rankEnumNew.label;
+
   Color get _rankColorNew {
-    String rank = _rankTextNew;
-    if (rank == 'Giỏi') return const Color(0xFF2E7D32); // Green
-    if (rank == 'Khá') return const Color(0xFF1976D2);  // Blue
-    if (rank == 'Đạt') return const Color(0xFFF57C00);  // Orange
-    return AppColors.error; // Red
+    switch (_rankEnumNew) {
+      case AcademicRank.tot:
+        return const Color(0xFF2E7D32); // Green
+      case AcademicRank.kha:
+        return const Color(0xFF1976D2); // Blue
+      case AcademicRank.dat:
+        return const Color(0xFFF57C00); // Orange
+      case AcademicRank.chuaDat:
+        return AppColors.error; // Red
+    }
   }
 
   @override
@@ -341,9 +334,9 @@ class _GradesScreenState extends State<GradesScreen> {
                 border: Border.all(color: const Color(0xFFE8E8E8), width: 1.5),
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+                child: DropdownButton<GradeLevel>(
                   value: _selectedClass,
-                  onChanged: (String? newValue) {
+                  onChanged: (GradeLevel? newValue) {
                     if (newValue != null) {
                       setState(() {
                         _selectedClass = newValue;
@@ -357,11 +350,11 @@ class _GradesScreenState extends State<GradesScreen> {
                       });
                     }
                   },
-                  items: _classes.map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
+                  items: GradeLevel.values.map<DropdownMenuItem<GradeLevel>>((GradeLevel value) {
+                    return DropdownMenuItem<GradeLevel>(
                       value: value,
                       child: Text(
-                        value,
+                        value.classPrefix,
                         style: AppStyles.labelSm.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.bold),
                       ),
                     );
@@ -587,17 +580,36 @@ class _GradesScreenState extends State<GradesScreen> {
   Widget _buildGradeCard(Grade grade) {
     final bool hasNoGrades = grade.assignmentScore == -1.0;
     Color accentColor = AppColors.secondary;
+    String rankLabel = 'Chưa có';
+    
+    final isComment = grade.subjectType.isCommentEvaluation;
+    
     if (hasNoGrades) {
       accentColor = Colors.grey.shade400;
-    } else if (grade.letterGrade != null) {
-      if (grade.letterGrade!.startsWith('A')) {
-        accentColor = AppColors.primaryContainer;
-      } else if (grade.letterGrade!.startsWith('B')) {
-        accentColor = AppColors.secondary;
-      } else if (grade.letterGrade!.startsWith('C')) {
-        accentColor = AppColors.tertiary;
+      rankLabel = 'Chưa có';
+    } else if (isComment) {
+      final eval = SubjectEvaluation.fromScore(grade.overallScore);
+      if (eval == SubjectEvaluation.dat) {
+        accentColor = const Color(0xFF2E7D32); // Green
+        rankLabel = 'Đạt (Đ)';
       } else {
-        accentColor = AppColors.error;
+        accentColor = AppColors.error; // Red
+        rankLabel = 'Chưa đạt (KĐ)';
+      }
+    } else {
+      final score = grade.overallScore ?? 0.0;
+      if (score >= 8.5) {
+        accentColor = const Color(0xFF2E7D32); // Green
+        rankLabel = 'Tốt';
+      } else if (score >= 6.5) {
+        accentColor = const Color(0xFF1976D2); // Blue
+        rankLabel = 'Khá';
+      } else if (score >= 5.0) {
+        accentColor = const Color(0xFFF57C00); // Orange
+        rankLabel = 'Đạt';
+      } else {
+        accentColor = AppColors.error; // Red
+        rankLabel = 'Chưa đạt';
       }
     }
 
@@ -654,7 +666,7 @@ class _GradesScreenState extends State<GradesScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          hasNoGrades ? 'Chưa có' : (grade.letterGrade ?? 'F'),
+                          rankLabel,
                           style: AppStyles.labelLg.copyWith(
                             color: accentColor,
                             fontWeight: FontWeight.bold,
@@ -669,31 +681,49 @@ class _GradesScreenState extends State<GradesScreen> {
                     color: AppColors.outlineVariant.withOpacity(0.3),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildScoreLabel('Bài tập (20%)', hasNoGrades ? '-' : grade.assignmentScore.toString()),
-                      _buildScoreLabel('Giữa kỳ (30%)', hasNoGrades ? '-' : grade.midtermScore.toString()),
-                      _buildScoreLabel('Cuối kỳ (50%)', hasNoGrades ? '-' : grade.finalScore.toString()),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Tổng kết',
-                            style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                  if (isComment)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Đánh giá nhận xét:',
+                          style: AppStyles.labelLg.copyWith(color: AppColors.onSurfaceVariant),
+                        ),
+                        Text(
+                          hasNoGrades ? 'Chưa đánh giá' : (grade.overallScore! >= 5.0 ? 'ĐẠT (Đ)' : 'CHƯA ĐẠT (KĐ)'),
+                          style: AppStyles.headlineMd.copyWith(
+                            color: hasNoGrades ? accentColor : (grade.overallScore! >= 5.0 ? const Color(0xFF2E7D32) : AppColors.error),
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            hasNoGrades ? '-' : (grade.overallScore?.toStringAsFixed(2) ?? '0.00'),
-                            style: AppStyles.headlineMd.copyWith(
-                              color: hasNoGrades ? accentColor : AppColors.primary,
-                              fontWeight: FontWeight.bold,
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildScoreLabel('Bài tập (20%)', hasNoGrades ? '-' : grade.assignmentScore.toString()),
+                        _buildScoreLabel('Giữa kỳ (30%)', hasNoGrades ? '-' : grade.midtermScore.toString()),
+                        _buildScoreLabel('Cuối kỳ (50%)', hasNoGrades ? '-' : grade.finalScore.toString()),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Tổng kết',
+                              style: AppStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                            const SizedBox(height: 2),
+                            Text(
+                              hasNoGrades ? '-' : (grade.overallScore?.toStringAsFixed(2) ?? '0.00'),
+                              style: AppStyles.headlineMd.copyWith(
+                                color: hasNoGrades ? accentColor : AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
